@@ -38,26 +38,16 @@ def sync_dir(dir, dest_dir, bucket)
 end
 
 if ARGV.length == 0
-  puts "Usage: sync source_dir dest_dir"
+  puts "Usage: sync source dest_dir"
   exit
 end
 
-if !File.directory?(ARGV[0])
-  puts "source_dir must be a directory"
-  exit
-end
 
-source_dir = ARGV[0]
+source = ARGV[0]
 dest_dir = ARGV[1]
 
-puts "source_dir: #{source_dir}"
+puts "source: #{source}"
 puts "dest_dir: #{dest_dir}"
-
-puts "Contents of source dir"
-Dir.foreach(source_dir) do|filename|
-  next if filename == '.' || filename == '..'
-  puts File.basename(filename)
-end
 
 AWS::S3::Base.establish_connection!(
     :access_key_id     => 'AKIAIVMC57UNL7U5O4WA',
@@ -66,7 +56,11 @@ AWS::S3::Base.establish_connection!(
 
 bucket = AWS::S3::Bucket.find('kevinthorley.com')
 
-sync_dir(source_dir, dest_dir, bucket)
+if (File.directory? source)
+   sync_dir(source, dest_dir, bucket)
+else
+   sync_file(source, dest_dir, bucket)
+end
 
 
 
