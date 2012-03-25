@@ -5,15 +5,13 @@ require 'optparse'
 def sync_file(path, remote_root, bucket, options)
   remote_path = remote_root + "/" + path
   if !AWS::S3::S3Object.exists? remote_path, bucket.name
-    puts "file #{path} does not exist on remote server - syncing"
-    do_sync(remote_path, path, bucket) if !options[:dry_run]
+    do_sync(remote_path, path, bucket, options)
   else
     remote_file = AWS::S3::S3Object.find(remote_path, bucket.name)
     remote_file_mtime = DateTime.strptime(remote_file.about["last-modified"], '%a, %d %b %Y %X %Z')
     local_file_mtime = DateTime.parse(File.mtime(path).to_s)
     if local_file_mtime > remote_file_mtime
-      puts "local file #{path} is newer - syncing"
-      do_sync(remote_path, path, bucket) if !options[:dry_run]
+      do_sync(remote_path, path, bucket, options)
     end
   end
 end
@@ -38,8 +36,12 @@ def sync_dir(dir, dest_dir, bucket, options)
   end
 end
 
-def do_sync(remote_path, path, bucket)
-  AWS::S3::S3Object.store(remote_path, open(path), bucket.name)
+def do_sync(remote_path, path, bucket, options)
+  if options[:include] && !File.fnmatch(options[:include], path) 
+    return
+  end
+  puts "Syncing file #{path}"
+  AWS::S3::S3Object.store(remote_path, open(path), bucket.name) if !options[:dry_run]
 end
 
 options = {}
@@ -55,6 +57,11 @@ optparse = OptionParser.new do |opts|
   opts.on( '-v', '--verbose', 'Verbose' ) do
     options[:verbose] = true
   end
+  
+  options[:include] = nil
+    opts.on( '-i', '--include PATTERN', 'Only include files matching the specified pattern' ) do|pattern|
+      options[:include] = pattern
+    end
 end
 
 optparse.parse!
@@ -71,6 +78,7 @@ puts "source: #{source}" if options[:verbose]
 puts "dest_dir: #{dest_dir}" if options[:verbose]
 
 puts "DRY RUN" if options[:dry_run]
+puts "Include #{options[:include]}" if options[:include]
 
 AWS::S3::Base.establish_connection!(
     :access_key_id     => 'AKIAIVMC57UNL7U5O4WA',
