@@ -28,9 +28,9 @@ def sync_dir(dir, dest_dir, bucket, options)
       path = dir + "/" + filename
     end
 
-    puts "Checking path #{path}"
+    puts "Checking path #{path}" if options[:verbose]
     if File.directory?(path) 
-      puts "file #{path} is a directory - entering directory"
+      puts "file #{path} is a directory - entering directory" if options[:verbose]
       sync_dir(path, dest_dir, bucket, options)
     else 
       sync_file(path, dest_dir, bucket, options)
@@ -48,12 +48,16 @@ optparse = OptionParser.new do |opts|
   opts.banner = "Usage: sync.rb [options] source dest_dir"
   options[:dry_run] = false
   opts.on( '-n', '--dry-run', 'Dry run' ) do
-       options[:dry_run] = true
-     end
+    options[:dry_run] = true
+  end
+  
+  options[:verbose] = false
+  opts.on( '-v', '--verbose', 'Verbose' ) do
+    options[:verbose] = true
+  end
 end
 
 optparse.parse!
-
 
 if ARGV.length != 2
   puts "Usage: sync.rb [options] source dest_dir"
@@ -63,8 +67,8 @@ end
 source = ARGV[0]
 dest_dir = ARGV[1]
 
-puts "source: #{source}"
-puts "dest_dir: #{dest_dir}"
+puts "source: #{source}" if options[:verbose]
+puts "dest_dir: #{dest_dir}" if options[:verbose]
 
 puts "DRY RUN" if options[:dry_run]
 
