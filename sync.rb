@@ -1,8 +1,10 @@
 require 'rubygems'
 require 'aws/s3'
 require 'optparse'
+require 'mini_exiftool'
 
 def sync_file(path, remote_root, bucket, options)
+  puts "sync_file #{path}" if options[:verbose]
   remote_path = remote_root + "/" + path
   if !AWS::S3::S3Object.exists? remote_path, bucket.name
     do_sync(remote_path, path, bucket, options)
@@ -18,6 +20,7 @@ def sync_file(path, remote_root, bucket, options)
 end
 
 def sync_dir(dir, dest_dir, bucket, options)
+  puts "sync_dir #{dir}" if options[:verbose]
   Dir.foreach(dir) do|filename|
     next if filename == '.' || filename == '..'
     
@@ -27,20 +30,20 @@ def sync_dir(dir, dest_dir, bucket, options)
       path = dir + "/" + filename
     end
 
-    puts "Checking path #{path}" if options[:verbose]
     if File.directory?(path) 
-      puts "file #{path} is a directory - entering directory" if options[:verbose]
       sync_dir(path, dest_dir, bucket, options)
-    else 
+    elsif !options[:include] || options[:include] && File.fnmatch(options[:include], path) 
       sync_file(path, dest_dir, bucket, options)
     end
   end
 end
 
 def do_sync(remote_path, path, bucket, options)
-  if options[:include] && !File.fnmatch(options[:include], path) 
+  puts "do_sync #{path}" if options[:verbose]
+  if options[:keyword] && !MiniExiftool.new(path).keyword.to_a.include?(options[:keyword])
     return
   end
+  
   puts "Syncing file #{path}"
   AWS::S3::S3Object.store(remote_path, open(path), bucket.name) if !options[:dry_run]
 end
@@ -67,6 +70,11 @@ optparse = OptionParser.new do |opts|
   options[:newer] = false
   opts.on( '-m', '--newer', 'Newer' ) do
     options[:newer] = true
+  end
+  
+  options[:keyword] = nil
+  opts.on( '-k', '--keyword KEYWORD', 'Keyword' ) do |keyword|
+    options[:keyword] = keyword
   end
 end
 
@@ -98,7 +106,4 @@ if (File.directory? source)
 else
    sync_file(source, dest_dir, bucket, options)
 end
-
-
-
 
