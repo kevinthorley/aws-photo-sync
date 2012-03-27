@@ -6,7 +6,8 @@ def sync_file(path, remote_root, bucket, options)
   remote_path = remote_root + "/" + path
   if !AWS::S3::S3Object.exists? remote_path, bucket.name
     do_sync(remote_path, path, bucket, options)
-  else
+  elsif options[:newer]
+    puts "Checking if local file is newer"
     remote_file = AWS::S3::S3Object.find(remote_path, bucket.name)
     remote_file_mtime = DateTime.strptime(remote_file.about["last-modified"], '%a, %d %b %Y %X %Z')
     local_file_mtime = DateTime.parse(File.mtime(path).to_s)
@@ -59,9 +60,14 @@ optparse = OptionParser.new do |opts|
   end
   
   options[:include] = nil
-    opts.on( '-i', '--include PATTERN', 'Only include files matching the specified pattern' ) do|pattern|
-      options[:include] = pattern
-    end
+  opts.on( '-i', '--include PATTERN', 'Only include files matching the specified pattern' ) do|pattern|
+    options[:include] = pattern
+  end
+  
+  options[:newer] = false
+  opts.on( '-m', '--newer', 'Newer' ) do
+    options[:newer] = true
+  end
 end
 
 optparse.parse!
