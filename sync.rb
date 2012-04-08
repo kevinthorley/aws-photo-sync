@@ -9,7 +9,7 @@ def sync_file(path, remote_root, bucket, options)
   if !AWS::S3::S3Object.exists? remote_path, bucket.name
     do_sync(remote_path, path, bucket, options)
   elsif options[:newer]
-    puts "Checking if local file is newer"
+    puts "Checking if local file is newer" if [:verbose]
     remote_file = AWS::S3::S3Object.find(remote_path, bucket.name)
     remote_file_mtime = DateTime.strptime(remote_file.about["last-modified"], '%a, %d %b %Y %X %Z')
     local_file_mtime = DateTime.parse(File.mtime(path).to_s)
@@ -80,16 +80,18 @@ end
 
 optparse.parse!
 
-if ARGV.length != 2
-  puts "Usage: sync.rb [options] source dest_dir"
+if ARGV.length != 3
+  puts "Usage: sync.rb [options] bucket source dest_dir"
   exit
 end
 
-source = ARGV[0]
-dest_dir = ARGV[1]
+bucket = ARGV[0]
+source = ARGV[1]
+dest_dir = ARGV[2]
 
+puts "bucket name: #{bucket}" if options[:verbose]
 puts "source: #{source}" if options[:verbose]
-puts "dest_dir: #{dest_dir}" if options[:verbose]
+puts "dest: #{dest_dir}" if options[:verbose]
 
 puts "DRY RUN" if options[:dry_run]
 puts "Include #{options[:include]}" if options[:include]
@@ -103,7 +105,7 @@ AWS::S3::Base.establish_connection!(
   :secret_access_key => ENV['AMAZON_SECRET_ACCESS_KEY']
 )
 
-bucket = AWS::S3::Bucket.find('kevinthorley.com')
+bucket = AWS::S3::Bucket.find(bucket)
 
 if (File.directory? source)
    sync_dir(source, dest_dir, bucket, options)
