@@ -6,17 +6,27 @@ require 'mini_exiftool'
 def sync_file(path, remote_root, bucket, options, summary)
   puts "sync_file #{path}" if options[:verbose]
   remote_path = remote_root + "/" + path
-  if !AWS::S3::S3Object.exists? remote_path, bucket.name
-    do_sync(remote_path, path, bucket, options, summary)
+  
+  if AWS::S3::S3Object.exists? remote_path, bucket.name
+    return
   elsif options[:newer]
     puts "Checking if local file is newer" if options[:verbose]
     remote_file = AWS::S3::S3Object.find(remote_path, bucket.name)
     remote_file_mtime = DateTime.strptime(remote_file.about["last-modified"], '%a, %d %b %Y %X %Z')
     local_file_mtime = DateTime.parse(File.mtime(path).to_s)
-    if local_file_mtime > remote_file_mtime
-      do_sync(remote_path, path, bucket, options, summary)
+    if local_file_mtime <= remote_file_mtime
+      return
     end
   end
+  
+  do_sync(remote_path, path, bucket, options, summary)
+  
+  if options[:raw]
+    extension = File.extname(path)
+    raw_path = path.sub(/#{extension}/, options[:raw])
+    do_sync(remote_path, raw_path, bucket, options, summary)
+  end
+  
 end
 
 def sync_dir(dir, dest_dir, bucket, options, summary)
@@ -92,6 +102,11 @@ optparse = OptionParser.new do |opts|
   options[:keyword] = nil
   opts.on( '-k', '--keyword KEYWORD', 'Keyword' ) do |keyword|
     options[:keyword] = keyword
+  end
+  
+  options[:raw] = nil
+  opts.on( '-r', '--raw TYPE', 'RAW file type') do |type|
+    options[:raw] = type
   end
 end
 
