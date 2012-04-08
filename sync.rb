@@ -3,23 +3,23 @@ require 'aws/s3'
 require 'optparse'
 require 'mini_exiftool'
 
-def sync_file(path, remote_root, bucket, options)
+def sync_file(path, remote_root, bucket, options, summary)
   puts "sync_file #{path}" if options[:verbose]
   remote_path = remote_root + "/" + path
   if !AWS::S3::S3Object.exists? remote_path, bucket.name
-    do_sync(remote_path, path, bucket, options)
+    do_sync(remote_path, path, bucket, options, summary)
   elsif options[:newer]
-    puts "Checking if local file is newer" if [:verbose]
+    puts "Checking if local file is newer" if options[:verbose]
     remote_file = AWS::S3::S3Object.find(remote_path, bucket.name)
     remote_file_mtime = DateTime.strptime(remote_file.about["last-modified"], '%a, %d %b %Y %X %Z')
     local_file_mtime = DateTime.parse(File.mtime(path).to_s)
     if local_file_mtime > remote_file_mtime
-      do_sync(remote_path, path, bucket, options)
+      do_sync(remote_path, path, bucket, options, summary)
     end
   end
 end
 
-def sync_dir(dir, dest_dir, bucket, options)
+def sync_dir(dir, dest_dir, bucket, options, summary)
   puts "sync_dir #{dir}" if options[:verbose]
   Dir.foreach(dir) do|filename|
     next if filename == '.' || filename == '..'
@@ -31,14 +31,14 @@ def sync_dir(dir, dest_dir, bucket, options)
     end
 
     if File.directory?(path) 
-      sync_dir(path, dest_dir, bucket, options)
+      sync_dir(path, dest_dir, bucket, options, summary)
     elsif !options[:include] || options[:include] && File.fnmatch(options[:include], path) 
-      sync_file(path, dest_dir, bucket, options)
+      sync_file(path, dest_dir, bucket, options, summary)
     end
   end
 end
 
-def do_sync(remote_path, path, bucket, options)
+def do_sync(remote_path, path, bucket, options, summary)
   puts "do_sync #{path}" if options[:verbose]
   if options[:keyword] && !MiniExiftool.new(path).keyword.to_a.include?(options[:keyword])
     return
@@ -46,6 +46,20 @@ def do_sync(remote_path, path, bucket, options)
   
   puts "Syncing file #{path}"
   AWS::S3::S3Object.store(remote_path, open(path), bucket.name) if !options[:dry_run]
+  summary << path
+end
+
+def human_readable(size)
+  kilobyte = 2.0**10
+  megabyte = 2.0**20
+  gigabyte = 2.0**30
+  
+  case
+    when size < kilobyte : "%d bytes" % size
+    when size < megabyte : "%.2f KB" % (size / kilobyte)
+    when size < gigabyte : "%.2f MB" % (size / megabyte)
+    else "%.2f GB" % (size / gigabyte)
+  end
 end
 
 options = {}
@@ -81,7 +95,7 @@ end
 optparse.parse!
 
 if ARGV.length != 3
-  puts "Usage: sync.rb [options] bucket source dest_dir"
+  puts "Usage: sync.rb [options] bucket source dest"
   exit
 end
 
@@ -107,9 +121,18 @@ AWS::S3::Base.establish_connection!(
 
 bucket = AWS::S3::Bucket.find(bucket)
 
+summary = []
+
 if (File.directory? source)
-   sync_dir(source, dest_dir, bucket, options)
+   sync_dir(source, dest_dir, bucket, options, summary)
 else
-   sync_file(source, dest_dir, bucket, options)
+   sync_file(source, dest_dir, bucket, options, summary)
 end
 
+file_size = 0
+summary.each do |file|
+  file_size += File.size(file)
+end
+
+puts "Total number of files: #{summary.length}"
+puts "Total size of files: #{human_readable(file_size)}"
