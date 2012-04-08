@@ -30,9 +30,15 @@ def sync_dir(dir, dest_dir, bucket, options, summary)
       path = dir + "/" + filename
     end
 
-    if File.directory?(path) 
+    if File.directory?(path)
       sync_dir(path, dest_dir, bucket, options, summary)
-    elsif !options[:include] || options[:include] && File.fnmatch(options[:include], path) 
+    elsif options[:include] && !File.fnmatch(options[:include], path)
+      puts "#{path} doesn't match file file pattern #{options[:include]}" if options[:verbose]
+      next
+    elsif options[:keyword] && !MiniExiftool.new(path).keywords.to_a.include?(options[:keyword])
+      puts "#{path} doesn't include keyword #{options[:keyword]}" if options[:verbose]
+      next
+    else
       sync_file(path, dest_dir, bucket, options, summary)
     end
   end
@@ -40,9 +46,6 @@ end
 
 def do_sync(remote_path, path, bucket, options, summary)
   puts "do_sync #{path}" if options[:verbose]
-  if options[:keyword] && !MiniExiftool.new(path).keyword.to_a.include?(options[:keyword])
-    return
-  end
   
   puts "Syncing file #{path}"
   AWS::S3::S3Object.store(remote_path, open(path), bucket.name) if !options[:dry_run]
@@ -109,11 +112,12 @@ puts "dest: #{dest_dir}" if options[:verbose]
 
 puts "DRY RUN" if options[:dry_run]
 puts "Include #{options[:include]}" if options[:include]
+puts "Keyword #{options[:keyword]}" if options[:keyword]
 
 # Assumes keys in env variables:
 # export AMAZON_ACCESS_KEY_ID='abcdefghijkl'
 # export AMAZON_SECRET_ACCESS_KEY='1234567890'
- 
+
 AWS::S3::Base.establish_connection!(
   :access_key_id => ENV['AMAZON_ACCESS_KEY_ID'],
   :secret_access_key => ENV['AMAZON_SECRET_ACCESS_KEY']
