@@ -94,9 +94,13 @@ puts "dest_dir: #{dest_dir}" if options[:verbose]
 puts "DRY RUN" if options[:dry_run]
 puts "Include #{options[:include]}" if options[:include]
 
+# Assumes keys in env variables:
+# export AMAZON_ACCESS_KEY_ID='abcdefghijkl'
+# export AMAZON_SECRET_ACCESS_KEY='1234567890'
+ 
 AWS::S3::Base.establish_connection!(
-    :access_key_id     => 'AKIAIVMC57UNL7U5O4WA',
-    :secret_access_key => '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'
+  :access_key_id => ENV['AMAZON_ACCESS_KEY_ID'],
+  :secret_access_key => ENV['AMAZON_SECRET_ACCESS_KEY']
 )
 
 bucket = AWS::S3::Bucket.find('kevinthorley.com')
