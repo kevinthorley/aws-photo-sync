@@ -1,3 +1,6 @@
+# Copyright (c) 2012 Kevin Thorley (www.kevinthorley.com)
+# See LICENSE.txt for details
+
 require 'rubygems'
 require 'aws/s3'
 require 'optparse'

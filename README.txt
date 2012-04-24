@@ -1,7 +1,7 @@
 A simple script to sync images (or any file) to amazon s3
 
 Usage:
-ruby sync.rb source_dir dest_dir s3_bucket_name
+ruby sync.rb s3_bucket_name source_dir dest_dir
 
 Options:
 --dry-run	Do not actually do the sync to S3
