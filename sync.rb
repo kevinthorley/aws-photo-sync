@@ -78,6 +78,8 @@ def human_readable(size)
   end
 end
 
+start_time = Time.now
+
 options = {}
 
 optparse = OptionParser.new do |opts|
@@ -151,6 +153,9 @@ else
    sync_file(source, dest_dir, bucket, options, summary)
 end
 
+end_time = Time.now
+elapsed_time = end_time - start_time
+
 file_size = 0
 summary.each do |file|
   file_size += File.size(file)
@@ -158,3 +163,4 @@ end
 
 puts "Total number of files: #{summary.length}"
 puts "Total size of files: #{human_readable(file_size)}"
+puts "Total time: #{elapsed_time / 60} minutes"
