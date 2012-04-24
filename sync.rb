@@ -117,17 +117,22 @@ end
 
 optparse.parse!
 
-if ARGV.length != 3
-  puts "Usage: sync.rb [options] bucket source dest"
+if ARGV.length < 3
+  puts "Usage: sync.rb [options] bucket dest source(s)"
   exit
 end
 
 bucket = ARGV[0]
-source = ARGV[1]
-dest_dir = ARGV[2]
+dest_dir = ARGV[1]
+
+sources = []
+
+for i in 2..(ARGV.size - 1)
+  sources << ARGV[i]
+end
 
 puts "bucket name: #{bucket}" if options[:verbose]
-puts "source: #{source}" if options[:verbose]
+puts "source(s): #{sources.join(', ')}" if options[:verbose]
 puts "dest: #{dest_dir}" if options[:verbose]
 
 puts "DRY RUN" if options[:dry_run]
@@ -147,10 +152,12 @@ bucket = AWS::S3::Bucket.find(bucket)
 
 summary = []
 
-if (File.directory? source)
-   sync_dir(source, dest_dir, bucket, options, summary)
-else
-   sync_file(source, dest_dir, bucket, options, summary)
+sources.each do |source|
+  if (File.directory? source)
+    sync_dir(source, dest_dir, bucket, options, summary)
+  else
+    sync_file(source, dest_dir, bucket, options, summary)
+  end
 end
 
 end_time = Time.now
